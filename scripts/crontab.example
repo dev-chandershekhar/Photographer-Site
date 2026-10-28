@@ -1,0 +1,12 @@
+# Install on the VPS with:  crontab -e   (as the deploy user, not root)
+# Replace DOMAIN, and make sure CRON_SECRET is exported in the crontab or inlined below.
+SHELL=/bin/bash
+CRON_SECRET=replace-with-the-same-value-as-in-.env
+
+# If Cloudflare Bot Fight Mode challenges these calls, add:  --resolve DOMAIN:443:127.0.0.1
+# Social feed: hourly sync, and refresh the Instagram token every 14 days
+0 * * * *     curl -fsS -m 120 -H "x-cron-secret: $CRON_SECRET" https://DOMAIN/internal/cron/social-sync   >/dev/null
+0 3 */14 * *  curl -fsS -m 60  -H "x-cron-secret: $CRON_SECRET" https://DOMAIN/internal/cron/token-refresh >/dev/null
+
+# Database backup to the private R2 bucket (keeps 14 days)
+30 2 * * *    /opt/app/scripts/backup-db.sh >> /var/log/photographer-backup.log 2>&1

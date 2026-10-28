@@ -1,0 +1,93 @@
+# Used two ways:
+#   Development:  `docker compose up -d db`        (just Postgres on 127.0.0.1:5432)
+#   Production:   Coolify (Docker Compose build pack) runs the whole file: app + db + umami.
+# See docs/deployment.md.
+services:
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+        NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
+        NEXT_PUBLIC_UMAMI_SRC: ${NEXT_PUBLIC_UMAMI_SRC:-}
+        R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - '3000'
+    environment:
+      NODE_ENV: production
+      DATABASE_URI: postgres://${POSTGRES_USER:-photographer}:${POSTGRES_PASSWORD:-photographer}@db:5432/${POSTGRES_DB:-photographer}
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:-}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+      CRON_SECRET: ${CRON_SECRET:-}
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      META_GRAPH_VERSION: ${META_GRAPH_VERSION:-v21.0}
+    volumes:
+      # Only used when R2 is not configured (local-disk uploads). Production should use R2.
+      - media:/app/media
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:5432:5432' # localhost only: for dev and for backups run on the host
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-photographer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-photographer}
+      POSTGRES_DB: ${POSTGRES_DB:-photographer}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER:-photographer}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Self-hosted, cookie-free analytics. Give this service its own domain (e.g. stats.example.com).
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    restart: unless-stopped
+    depends_on:
+      umami-db:
+        condition: service_healthy
+    expose:
+      - '3000'
+    environment:
+      DATABASE_URL: postgresql://umami:${UMAMI_DB_PASSWORD:-umami}@umami-db:5432/umami
+      APP_SECRET: ${UMAMI_APP_SECRET:-change-me}
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:3000/api/heartbeat || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  umami-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: ${UMAMI_DB_PASSWORD:-umami}
+      POSTGRES_DB: umami
+    volumes:
+      - umami-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U umami']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+  umami-pgdata:
+  media:

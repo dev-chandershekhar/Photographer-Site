@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth scroll-pt-nav antialiased;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-paper font-sans text-base text-ink;
+  }
+
+  /* One consistent, always-visible keyboard focus indicator. */
+  :focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-accent;
+  }
+
+  /* On dark surfaces the accent outline is too dim; sections opt in with `.on-dark`. */
+  .on-dark :focus-visible {
+    @apply outline-paper;
+  }
+
+  ::selection {
+    @apply bg-accent text-paper;
+  }
+}
+
+/*
+ * GSAP scroll reveals (see components/ui/Reveal.tsx). Content is only hidden when JavaScript is on
+ * (<html class="js">) and motion is allowed. If GSAP never loads, a CSS fail-safe un-hides it after 4s.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .js [data-reveal]:not([data-revealed]),
+  .js [data-reveal-item]:not([data-revealed]) {
+    opacity: 0;
+  }
+
+  .js:not([data-gsap]) [data-reveal]:not([data-revealed]),
+  .js:not([data-gsap]) [data-reveal-item]:not([data-revealed]) {
+    animation: reveal-failsafe 0s linear 4s forwards;
+  }
+}
+
+@keyframes reveal-failsafe {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Respect the visitor's motion preference everywhere (smooth scroll, fades, slideshows). */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

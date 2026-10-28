@@ -1,0 +1,12 @@
+.git
+.next
+node_modules
+media
+.env
+.env*.local
+*.log
+.DS_Store
+_to_delete
+docs
+README.md
+tsconfig.tsbuildinfo
